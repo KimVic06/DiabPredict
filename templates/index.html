@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DiabPredict - Diabetes Risk Screener</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f9fafb; padding: 20px; max-width: 450px; margin: auto; }
+    h2 { color: #1e3a8a; }
+    h3 { color: #1e3a8a; margin-top: 24px; }
+    label { display: block; margin-top: 12px; font-weight: bold; }
+    input[type="number"] { width: 100%; padding: 10px; margin-top: 4px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+    input[type="file"] { margin-top: 8px; }
+    .field-not-found { border-color: #b91c1c !important; background: #fef2f2; }
+    .field-found { border-color: #15803d !important; }
+    .field-hint { font-size: 12px; margin-top: 2px; }
+    .hint-not-found { color: #b91c1c; }
+    .hint-found { color: #15803d; }
+    button { width: 100%; padding: 14px; margin-top: 20px; background: #2563eb; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; }
+    button:hover { background: #1d4ed8; }
+    button.secondary { background: #64748b; }
+    button.secondary:hover { background: #475569; }
+    #result { margin-top: 20px; padding: 16px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    #upload-status { margin-top: 10px; font-size: 14px; }
+    .risk-high { color: #b91c1c; font-weight: bold; }
+    .risk-low { color: #15803d; font-weight: bold; }
+    .divider { border-top: 1px solid #ddd; margin: 24px 0; }
+  </style>
+</head>
+<body>
+  <h2>🩺 Diabetes Risk Screener</h2>
+  <p>Enter your health parameters manually, or upload a lab report CSV to pre-fill the form. <strong>Not a medical diagnosis.</strong></p>
+
+  <h3>Option 1: Upload a lab report (CSV, Excel, or photo)</h3>
+  <input type="file" id="csv-file" accept=".csv,.xlsx,.xls,.png,.jpg,.jpeg">
+  <button type="button" class="secondary" onclick="uploadFile()">Extract from file</button>
+  <div id="upload-status"></div>
+
+  <div class="divider"></div>
+
+  <h3>Option 2: Review &amp; confirm values</h3>
+  <form id="prediction-form">
+    <label>Pregnancies</label>
+    <input type="number" id="pregnancies" value="0" step="any">
+    <label>Glucose (mg/dL)</label>
+    <input type="number" id="glucose" value="120" step="any">
+    <label>Blood Pressure (mm Hg)</label>
+    <input type="number" id="bloodpressure" value="70" step="any">
+    <label>Skin Thickness (mm)</label>
+    <input type="number" id="skinthickness" value="20" step="any">
+    <label>Insulin (µU/mL)</label>
+    <input type="number" id="insulin" value="80" step="any">
+    <label>BMI</label>
+    <input type="number" id="bmi" value="25" step="any">
+    <label>Diabetes Pedigree Function</label>
+    <input type="number" id="dpf" value="0.5" step="any">
+    <label>Age</label>
+    <input type="number" id="age" value="30" step="any">
+    <button type="submit">Check Risk</button>
+  </form>
+  <div id="result"></div>
+
+  <script>
+    const FIELDS = ['pregnancies', 'glucose', 'bloodpressure', 'skinthickness', 'insulin', 'bmi', 'dpf', 'age'];
+
+    // Upload CSV, pre-fill the form, and visually flag fields that need manual entry.
+    // The user must still review and submit the form themselves -- extraction
+    // never auto-submits a prediction.
+    async function uploadFile() {
+      const fileInput = document.getElementById('csv-file');
+      const statusDiv = document.getElementById('upload-status');
+
+      if (!fileInput.files.length) {
+        statusDiv.innerHTML = '<span style="color:#b91c1c;">Please choose a CSV file first.</span>';
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('file', fileInput.files[0]);
+      statusDiv.textContent = 'Extracting...';
+
+      try {
+        const response = await fetch('/upload', { method: 'POST', body: formData });
+        const result = await response.json();
+
+        if (result.error) {
+          statusDiv.innerHTML = `<span style="color:#b91c1c;">${result.error}</span>`;
+          return;
+        }
+
+        FIELDS.forEach(field => {
+          const input = document.getElementById(field);
+          const entry = result.extracted[field];
+
+          // Remove any previous hint element for this field
+          const existingHint = input.parentElement.querySelector(`.field-hint[data-for="${field}"]`);
+          if (existingHint) existingHint.remove();
+
+          const hint = document.createElement('div');
+          hint.dataset.for = field;
+          hint.classList.add('field-hint');
+
+          if (entry.status === 'found') {
+            input.value = entry.value;
+            input.classList.remove('field-not-found');
+            input.classList.add('field-found');
+            hint.classList.add('hint-found');
+            hint.textContent = 'Found in file -- please verify';
+          } else {
+            input.classList.remove('field-found');
+            input.classList.add('field-not-found');
+            hint.classList.add('hint-not-found');
+            hint.textContent = 'Not found -- please enter manually';
+          }
+          input.insertAdjacentElement('afterend', hint);
+        });
+
+        statusDiv.innerHTML = `<span style="color:#15803d;">${result.message}</span>`;
+      } catch (error) {
+        statusDiv.innerHTML = `<span style="color:#b91c1c;">Upload failed: ${error.message}</span>`;
+      }
+    }
+
+    document.getElementById('prediction-form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const data = {};
+      FIELDS.forEach(field => { data[field] = document.getElementById(field).value; });
+
+      try {
+        const response = await fetch('/predict', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        const result = await response.json();
+
+        if (result.error) {
+          document.getElementById('result').innerHTML = `<p style="color:#b91c1c;">Error: ${result.error}</p>`;
+          return;
+        }
+
+        const riskClass = result.prediction === 1 ? 'risk-high' : 'risk-low';
+        document.getElementById('result').innerHTML =
+          `<h3>Result</h3>
+           <p class="${riskClass}">${result.message}</p>
+           <p>Probability: ${result.probability}</p>
+           <p><em>This is an educational tool, not a medical diagnosis. Please see a doctor for any concerns.</em></p>`;
+      } catch (error) {
+        document.getElementById('result').innerHTML = `<p style="color:#b91c1c;">Error: ${error.message}</p>`;
+      }
+    });
+  </script>
+</body>
+</html>
