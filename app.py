@@ -10,13 +10,19 @@ import os
 app = Flask(__name__)
 
 # --- OCR setup ---
-import pytesseract
-from PIL import Image
+OCR_AVAILABLE = False
 
-if platform.system() == 'Windows' and shutil.which('tesseract') is None:
-    default_windows_path = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-    if os.path.exists(default_windows_path):
-        pytesseract.pytesseract.tesseract_cmd = default_windows_path
+if shutil.which("tesseract"):
+    OCR_AVAILABLE = True
+
+elif platform.system() == "Windows":
+    windows_path = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+
+    if os.path.exists(windows_path):
+        pytesseract.pytesseract.tesseract_cmd = windows_path
+        OCR_AVAILABLE = True
+
+print("OCR Available:", OCR_AVAILABLE)
 
 # Load model, scaler, and imputer
 with open('model.pkl', 'rb') as f:
