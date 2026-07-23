@@ -9,13 +9,18 @@ import pickle
 
 # Load dataset
 url = "https://raw.githubusercontent.com/jbrownlee/Datasets/master/pima-indians-diabetes.data.csv"
+# We still define all columns to load the CSV correctly, but we will drop DPF immediately after
 columns = [
     'Pregnancies', 'Glucose', 'BloodPressure', 'SkinThickness',
     'Insulin', 'BMI', 'DiabetesPedigreeFunction', 'Age', 'Outcome'
 ]
 df = pd.read_csv(url, names=columns)
 
-print("Shape:", df.shape)
+# --- MODIFICATION: Remove DiabetesPedigreeFunction ---
+df = df.drop(columns=['DiabetesPedigreeFunction'])
+# ----------------------------------------------------
+
+print("Shape after removing DPF:", df.shape)
 print(df.head())
 print(df['Outcome'].value_counts())
 
@@ -34,15 +39,14 @@ print(f"Training samples: {X_train.shape[0]}, Test samples: {X_test.shape[0]}")
 
 # Impute missing values using medians learned ONLY from the training set
 imputer = SimpleImputer(strategy='median')
+# We only apply imputation to the columns that had invalid zeros
 X_train[cols_with_zeros] = imputer.fit_transform(X_train[cols_with_zeros])
 X_test[cols_with_zeros] = imputer.transform(X_test[cols_with_zeros])
 
 print("Missing values in training set after imputation:")
 print(X_train.isnull().sum())
-print("Missing values in test set after imputation:")
-print(X_test.isnull().sum())
 
-# Scale features
+# Scale features (Now scaling only 7 features instead of 8)
 scaler = StandardScaler()
 X_train_scaled = scaler.fit_transform(X_train)
 X_test_scaled = scaler.transform(X_test)
@@ -58,7 +62,7 @@ print(f"Test Accuracy: {accuracy:.2f}")
 print("\nClassification Report:")
 print(classification_report(y_test, y_pred, target_names=['No Diabetes', 'Diabetes']))
 
-# Save model, scaler, and imputer (all three are needed at inference time)
+# Save model, scaler, and imputer
 with open('model.pkl', 'wb') as f:
     pickle.dump(model, f)
 with open('scaler.pkl', 'wb') as f:
@@ -66,4 +70,4 @@ with open('scaler.pkl', 'wb') as f:
 with open('imputer.pkl', 'wb') as f:
     pickle.dump(imputer, f)
 
-print("Model, scaler, and imputer saved successfully.")
+print("Model, scaler, and imputer saved successfully (7-feature version).")
