@@ -52,8 +52,6 @@
     <input type="number" id="insulin" value="80" step="any">
     <label>BMI</label>
     <input type="number" id="bmi" value="25" step="any">
-    <label>Diabetes Pedigree Function</label>
-    <input type="number" id="dpf" value="0.5" step="any">
     <label>Age</label>
     <input type="number" id="age" value="30" step="any">
     <button type="submit">Check Risk</button>
@@ -61,17 +59,14 @@
   <div id="result"></div>
 
   <script>
-    const FIELDS = ['pregnancies', 'glucose', 'bloodpressure', 'skinthickness', 'insulin', 'bmi', 'dpf', 'age'];
+    const FIELDS = ['pregnancies', 'glucose', 'bloodpressure', 'skinthickness', 'insulin', 'bmi', 'age'];
 
-    // Upload CSV, pre-fill the form, and visually flag fields that need manual entry.
-    // The user must still review and submit the form themselves -- extraction
-    // never auto-submits a prediction.
     async function uploadFile() {
       const fileInput = document.getElementById('csv-file');
       const statusDiv = document.getElementById('upload-status');
 
       if (!fileInput.files.length) {
-        statusDiv.innerHTML = '<span style="color:#b91c1c;">Please choose a CSV file first.</span>';
+        statusDiv.innerHTML = '<span style="color:#b91c1c;">Please choose a file first.</span>';
         return;
       }
 
@@ -92,7 +87,6 @@
           const input = document.getElementById(field);
           const entry = result.extracted[field];
 
-          // Remove any previous hint element for this field
           const existingHint = input.parentElement.querySelector(`.field-hint[data-for="${field}"]`);
           if (existingHint) existingHint.remove();
 
