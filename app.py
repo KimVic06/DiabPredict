@@ -24,6 +24,11 @@ elif platform.system() == "Windows":
 
 print("OCR Available:", OCR_AVAILABLE)
 
+if not OCR_AVAILABLE:
+    raise RuntimeError(
+        "OCR is unavailable because Tesseract is not installed."
+    )
+
 # Load model, scaler, and imputer
 with open('model.pkl', 'rb') as f:
     model = pickle.load(f)
